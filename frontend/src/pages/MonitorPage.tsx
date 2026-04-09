@@ -105,6 +105,7 @@ export function MonitorPage() {
         timestamp: a.timestamp,
         details: a.message,
         severity: a.severity,
+        metadata: {},
       })),
       metrics: finalMetrics ?? undefined,
     };

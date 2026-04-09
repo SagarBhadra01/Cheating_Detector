@@ -8,7 +8,7 @@ import { WeeklyHeatmap } from '../components/reports/WeeklyHeatmap';
 import { Card } from '../components/ui/Card';
 import { SEVERITY_MAP } from '../types';
 import type { SessionReport, ViolationType } from '../types';
-import { Download, FileText, Video, Camera, RefreshCw } from 'lucide-react';
+import { Download, Camera, RefreshCw } from 'lucide-react';
 
 function riskColor(s: number) { if(s>=60) return 'text-red-600'; if(s>=25) return 'text-amber-600'; return 'text-green-600'; }
 
@@ -106,7 +106,7 @@ export function ReportsPage() {
           {m && (
             <Card title="session ml metrics">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                {(m as Record<string, unknown>).classification && (() => {
+                {Boolean((m as Record<string, unknown>).classification) && (() => {
                   const c = (m as Record<string, unknown>).classification as Record<string, number>;
                   return (
                     <>

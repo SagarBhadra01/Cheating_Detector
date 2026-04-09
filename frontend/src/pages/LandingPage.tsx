@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import {
-  Eye, Shield, Activity, Mic, Hand, MonitorSmartphone,
-  Scan, BrainCircuit, User
+  Eye, Shield, Mic, Hand, MonitorSmartphone,
+  Scan, User
 } from 'lucide-react';
 import '../styles/landing.css';
 

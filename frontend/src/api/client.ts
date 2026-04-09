@@ -7,6 +7,7 @@ import type {
   SessionReport,
   Config,
   MetricsData,
+  ViolationType,
 } from '../types';
 import { SEVERITY_MAP } from '../types';
 
@@ -35,7 +36,7 @@ export async function getAlerts(limit = 20): Promise<Alert[]> {
   if (!Array.isArray(data)) return [];
   return data.map((a: Record<string, unknown>, i: number) => ({
     id: String(a.id ?? `alert-${i}`),
-    type: String(a.violation_type ?? a.type ?? 'UNKNOWN'),
+    type: String(a.violation_type ?? a.type ?? 'UNKNOWN') as ViolationType,
     message: String(a.message ?? ''),
     timestamp: String(a.timestamp ?? ''),
     severity: (a.severity ?? SEVERITY_MAP[String(a.violation_type ?? a.type ?? '') as keyof typeof SEVERITY_MAP] ?? 1) as 1|2|3|4|5,

@@ -1,13 +1,32 @@
 import os
 import tempfile
-from gtts import gTTS
-import pygame
 import threading
 import time
+import logging
+
+logger = logging.getLogger(__name__)
+
+try:
+    from gtts import gTTS
+    _HAS_GTTS = True
+except ImportError:
+    _HAS_GTTS = False
+    logger.warning("gTTS not available – voice alerts disabled")
+
+try:
+    import pygame
+    _HAS_PYGAME = True
+except ImportError:
+    _HAS_PYGAME = False
+    logger.warning("pygame not available – voice alerts disabled")
 
 class AlertSystem:
     def __init__(self, config):
-        pygame.mixer.init()
+        if _HAS_PYGAME:
+            try:
+                pygame.mixer.init()
+            except Exception:
+                pass
         self.config = config
         self.alert_cooldown = config['logging']['alert_cooldown']
         self.last_alert_time = {}
@@ -33,6 +52,8 @@ class AlertSystem:
         
     def speak_alert(self, alert_type, custom_message=None):
         """Convert text to speech and play it"""
+        if not _HAS_PYGAME or not _HAS_GTTS:
+            return
         voice_enabled = self.config.get('logging', {}).get('alert_system', {}).get('voice_alerts', True)
         if not voice_enabled or not self._can_alert(alert_type):
             return

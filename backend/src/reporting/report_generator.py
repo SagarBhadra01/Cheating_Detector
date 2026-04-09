@@ -1,5 +1,10 @@
 import os
-import pdfkit
+
+try:
+    import pdfkit
+    _HAS_PDFKIT = True
+except ImportError:
+    _HAS_PDFKIT = False
 import matplotlib
 matplotlib.use('Agg')  # Set non-interactive backend
 from jinja2 import Environment, FileSystemLoader
@@ -107,8 +112,8 @@ class ReportGenerator:
                 f.write(html_content)
 
             # Try to generate PDF
-            wkhtml_path = self._find_wkhtmltopdf()
-            if wkhtml_path:
+            wkhtml_path = self._find_wkhtmltopdf() if _HAS_PDFKIT else None
+            if _HAS_PDFKIT and wkhtml_path:
                 try:
                     options = {
                         'enable-local-file-access': None,

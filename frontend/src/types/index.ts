@@ -108,3 +108,30 @@ export const SEVERITY_MAP: Record<ViolationType, 1 | 2 | 3 | 4 | 5> = {
   OBJECT_DETECTED: 5,
   HAND_VIOLATION: 5,
 };
+
+/* ── Lockdown / Browser-integrity types ───────────────────────────── */
+
+export type LockdownViolationType =
+  | 'fullscreen_exit'
+  | 'tab_switch'
+  | 'window_blur'
+  | 'right_click'
+  | 'copy_attempt'
+  | 'paste_attempt'
+  | 'devtools_open'
+  | 'keyboard_shortcut'
+  | 'screen_record_detected'
+  | 'multiple_displays_detected'
+  | 'external_device_connected'
+  | 'display_change_detected'
+  | 'bluetooth_device_detected'
+  | 'serial_device_detected';
+
+export interface LockdownViolation {
+  id: string;
+  type: LockdownViolationType;
+  timestamp: number;      // Date.now()
+  label: string;          // Human-readable label
+  severity: 'low' | 'medium' | 'high';
+}
+

@@ -11,7 +11,7 @@ export function Sidebar() {
   const { pathname } = useLocation();
 
   return (
-    <aside className="flex flex-col items-center w-12 bg-gray-900 py-3 gap-1 shrink-0">
+    <aside className="flex flex-col items-center w-12 bg-white border-r border-gray-200 py-3 gap-1 shrink-0">
       <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 mb-4">
         <Shield className="w-4 h-4 text-white" />
       </div>
@@ -25,8 +25,8 @@ export function Sidebar() {
             title={label}
             className={`flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
               active
-                ? 'bg-gray-700 text-white'
-                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                ? 'bg-blue-50 text-blue-600'
+                : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
             }`}
           >
             <Icon className="w-[18px] h-[18px]" />

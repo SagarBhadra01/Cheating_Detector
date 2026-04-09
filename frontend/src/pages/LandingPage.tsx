@@ -203,7 +203,7 @@ export function LandingPage() {
                     key={i}
                     style={{
                       height: `${h}%`,
-                      background: `linear-gradient(to top, var(--success), rgba(0,232,122,0.3))`,
+                      background: `linear-gradient(to top, #16a34a, rgba(22,163,74,0.25))`,
                       animationDelay: `${i * 0.15}s`,
                     }}
                   />
@@ -214,7 +214,7 @@ export function LandingPage() {
             {/* Gaze Zone */}
             <div className="hud-cell">
               <div className="hud-cell-label">Gaze Zone</div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-subtle)' }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 10, color: '#9ca3af' }}>
                 <span>L</span><span style={{ flex: 1, textAlign: 'center' }}>C</span><span>R</span>
               </div>
               <div className="gaze-zone">
@@ -259,14 +259,14 @@ export function LandingPage() {
               <div className="hud-cell-label">Session Info</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
                 <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginBottom: 2 }}>ALERTS</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 700, color: 'var(--warning)' }}>
+                  <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ALERTS</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 700, color: '#d97706' }}>
                     07
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginBottom: 2 }}>ELAPSED</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--accent)' }}>
+                  <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ELAPSED</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: '#2563eb' }}>
                     {elapsed}
                   </div>
                 </div>

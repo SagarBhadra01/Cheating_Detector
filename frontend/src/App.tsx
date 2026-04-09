@@ -13,7 +13,7 @@ import { getSessionStats } from './api/client';
 function DashboardLayout() {
   const stats = usePolling(getSessionStats, 5000);
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden">
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0">
         <Topbar stats={stats} />
@@ -35,39 +35,40 @@ function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     <div
       style={{
         minHeight: '100vh',
-        background: '#080c10',
+        background: '#f8f9fb',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: "'Space Grotesk', sans-serif",
+        fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
-      {/* Grid overlay */}
+      {/* Dot grid overlay */}
       <div
         style={{
           position: 'fixed',
           inset: 0,
-          backgroundImage:
-            'linear-gradient(rgba(0,200,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,255,0.03) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
+          backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+          opacity: 0.4,
           pointerEvents: 'none',
         }}
       />
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Back to home */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <button
             onClick={() => navigate('/')}
             style={{
               background: 'none',
               border: 'none',
-              color: '#7a8b9a',
-              fontFamily: "'Space Grotesk', sans-serif",
+              color: '#6b7280',
+              fontFamily: "'Inter', system-ui, sans-serif",
               fontSize: 13,
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
+              fontWeight: 500,
             }}
           >
             ← Back to ExamProctor
@@ -81,11 +82,11 @@ function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
             forceRedirectUrl="/monitor"
             appearance={{
               variables: {
-                colorPrimary: '#00c8ff',
-                colorBackground: '#0d1318',
-                colorText: '#e8ecf0',
-                colorInputBackground: '#111820',
-                colorInputText: '#e8ecf0',
+                colorPrimary: '#2563eb',
+                colorBackground: '#ffffff',
+                colorText: '#111827',
+                colorInputBackground: '#f9fafb',
+                colorInputText: '#111827',
               },
             }}
           />
@@ -97,11 +98,11 @@ function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
             forceRedirectUrl="/monitor"
             appearance={{
               variables: {
-                colorPrimary: '#00c8ff',
-                colorBackground: '#0d1318',
-                colorText: '#e8ecf0',
-                colorInputBackground: '#111820',
-                colorInputText: '#e8ecf0',
+                colorPrimary: '#2563eb',
+                colorBackground: '#ffffff',
+                colorText: '#111827',
+                colorInputBackground: '#f9fafb',
+                colorInputText: '#111827',
               },
             }}
           />

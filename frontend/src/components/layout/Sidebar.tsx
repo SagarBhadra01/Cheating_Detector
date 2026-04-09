@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Monitor, FileText, Settings, Shield } from 'lucide-react';
+import { Monitor, FileText, Shield } from 'lucide-react';
 
 const nav = [
   { to: '/monitor', icon: Monitor, label: 'Monitor' },
   { to: '/reports', icon: FileText, label: 'Reports' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  //{ to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 export function Sidebar() {

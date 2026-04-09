@@ -59,9 +59,16 @@ def load_config():
 
 
 class MetricsTracker:
-    """Lightweight copy of the MetricsTracker from main.py for the dashboard."""
+    """
+    ML Metrics with realistic ground-truth labeling.
+    
+    Ground truth only activates after SUSTAIN_THRESHOLD consecutive
+    violation frames, preventing single-frame blips from inflating TP.
+    After GT activates, it decays over HOLD_FRAMES of no detection.
+    """
 
-    HOLD_FRAMES = 8
+    SUSTAIN_THRESHOLD = 5   # consecutive detection frames to confirm GT
+    HOLD_FRAMES = 20        # frames GT stays active after last detection
 
     def __init__(self):
         self.total_frames = 0
@@ -69,6 +76,7 @@ class MetricsTracker:
         self.fp = 0
         self.tn = 0
         self.fn = 0
+        self.consecutive_detections = 0
         self.hold_counter = 0
         self.ground_truth_active = False
         self.start_time = time.time()
@@ -77,9 +85,16 @@ class MetricsTracker:
     def record_frame(self, detection_positive: bool, active_detectors: list = None):
         self.total_frames += 1
 
+        # Track consecutive detection frames
         if detection_positive:
+            self.consecutive_detections += 1
+        else:
+            self.consecutive_detections = 0
+
+        # GT activates only after sustained detection
+        if self.consecutive_detections >= self.SUSTAIN_THRESHOLD:
             self.hold_counter = self.HOLD_FRAMES
-        elif self.hold_counter > 0:
+        elif not detection_positive and self.hold_counter > 0:
             self.hold_counter -= 1
 
         gt = self.hold_counter > 0

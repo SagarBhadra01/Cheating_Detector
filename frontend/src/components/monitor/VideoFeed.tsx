@@ -1,32 +1,20 @@
-import { useEffect, useRef } from 'react';
 import { Card } from '../ui/Card';
 import type { DetectionState } from '../../types';
 import { Camera, User } from 'lucide-react';
 
 interface VideoFeedProps {
   state: DetectionState | null;
-  stream: MediaStream | null;
+  videoUrl: string | null;          // MJPEG stream URL from backend
   onStartCamera: () => void;
   isStarting: boolean;
 }
 
-export function VideoFeed({ state, stream, onStartCamera, isStarting }: VideoFeedProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+export function VideoFeed({ state, videoUrl, onStartCamera, isStarting }: VideoFeedProps) {
   const face = state?.face_present ?? true;
   const gaze = state?.gaze_direction ?? 'center';
   const ear  = state?.eye_ratio ?? 0.3;
   const objDetected = state?.objects_detected ?? false;
   const objLabel    = state?.detected_object_label ?? '';
-
-  // Attach stream to <video> element whenever stream changes
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      if (stream) {
-        videoRef.current.play().catch(() => {});
-      }
-    }
-  }, [stream]);
 
   return (
     <Card title="webcam feed">
@@ -34,14 +22,12 @@ export function VideoFeed({ state, stream, onStartCamera, isStarting }: VideoFee
         className="relative w-full overflow-hidden rounded-lg bg-gray-100 border border-gray-200"
         style={{ aspectRatio: '16/10' }}
       >
-        {stream ? (
+        {videoUrl ? (
           <>
-            {/* Live camera video */}
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
+            {/* Live backend MJPEG stream */}
+            <img
+              src={videoUrl}
+              alt="Live camera feed"
               className="absolute inset-0 w-full h-full object-cover"
             />
 
@@ -68,7 +54,7 @@ export function VideoFeed({ state, stream, onStartCamera, isStarting }: VideoFee
             {/* Bottom-left badges */}
             <div className="absolute bottom-2.5 left-2.5 flex gap-1.5">
               <span className="px-1.5 py-0.5 rounded bg-black/40 backdrop-blur-sm text-[9px] text-white font-mono">
-                1280×720
+                Backend Stream
               </span>
               <span className="px-1.5 py-0.5 rounded bg-black/40 backdrop-blur-sm text-[9px] text-white font-mono">
                 {gaze} · EAR {ear.toFixed(2)}
@@ -106,9 +92,9 @@ export function VideoFeed({ state, stream, onStartCamera, isStarting }: VideoFee
               <User className="w-9 h-9 text-gray-300" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-gray-500">Camera not started</p>
+              <p className="text-sm font-medium text-gray-500">Backend camera not started</p>
               <p className="text-[12px] text-gray-400 mt-0.5">
-                Click Start Monitoring to enable webcam
+                Click Start Monitoring to enable webcam via backend
               </p>
             </div>
             <button

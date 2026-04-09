@@ -1,0 +1,1 @@
+{"face_present": true, "gaze_direction": "center", "eye_ratio": 0.2895, "mouth_moving": false, "multiple_faces": false, "objects_detected": false, "detected_object_label": "unidentified object", "hand_violation": true, "hand_violation_msg": "Another Person Detected Nearby", "eye_alarming": false, "mouth_alarming": false, "timestamp": "2026-04-09 18:02:45"}

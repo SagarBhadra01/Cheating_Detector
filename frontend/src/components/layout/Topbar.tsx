@@ -12,7 +12,7 @@ interface TopbarProps {
 const tabs = [
   { to: '/monitor',  label: 'Monitor'  },
   { to: '/reports',  label: 'Reports'  },
-  { to: '/settings', label: 'Settings' },
+  //{ to: '/settings', label: 'Settings' },
 ];
 
 export function Topbar({ stats }: TopbarProps) {

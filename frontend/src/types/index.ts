@@ -135,3 +135,51 @@ export interface LockdownViolation {
   severity: 'low' | 'medium' | 'high';
 }
 
+/* ── ML Metrics types (from MetricsTracker.to_dict()) ─────────── */
+
+export interface ConfusionMatrix {
+  tp: number;
+  fp: number;
+  tn: number;
+  fn: number;
+}
+
+export interface ClassificationMetrics {
+  accuracy: number;
+  precision: number;
+  recall: number;
+  specificity: number;
+  f1_score: number;
+  mcc: number;
+}
+
+export interface YoloMetrics {
+  inference_frames: number;
+  raw_detections: number;
+  validated_detections: number;
+  rejected_detections: number;
+  avg_confidence: number;
+  max_confidence: number;
+  min_confidence: number;
+}
+
+export interface MtcnnMetrics {
+  inference_frames: number;
+  face_detected_frames: number;
+  face_absent_frames: number;
+  violation_frames: number;
+  avg_confidence: number;
+}
+
+export interface MetricsData {
+  session_duration_s: number;
+  total_frames: number;
+  avg_fps: number;
+  confusion_matrix: ConfusionMatrix;
+  classification: ClassificationMetrics;
+  per_detector_triggers: Record<string, number>;
+  ground_truth_active: boolean;
+  yolo?: YoloMetrics;
+  mtcnn?: MtcnnMetrics;
+}
+

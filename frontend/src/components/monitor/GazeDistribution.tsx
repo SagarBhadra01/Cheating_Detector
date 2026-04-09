@@ -13,7 +13,7 @@ const barColors: Record<string, string> = {
 };
 
 export function GazeDistribution({ gaze, state }: GazeDistributionProps) {
-  const data = gaze ?? { left: 15, center: 72, right: 13 };
+  const data = gaze ?? { left: 0, center: 0, right: 0 };
   const ear = state?.eye_ratio ?? 0.3;
   const eyeOpen = ear > 0.25;
 

@@ -16,8 +16,12 @@ export function usePolling<T>(
     let cancelled = false;
 
     const tick = async () => {
-      const result = await savedFn.current();
-      if (!cancelled) setData(result);
+      try {
+        const result = await savedFn.current();
+        if (!cancelled) setData(result);
+      } catch {
+        // Backend unreachable — keep last known data
+      }
     };
 
     tick();

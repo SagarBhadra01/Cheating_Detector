@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSessionReports, getPdfReportUrl } from '../api/client';
+import { getSessionReports, getSessionReport, getPdfReportUrl } from '../api/client';
 import { SessionList } from '../components/reports/SessionList';
 import { ViolationTimeline } from '../components/reports/ViolationTimeline';
 import { ViolationBreakdown } from '../components/reports/ViolationBreakdown';
@@ -14,10 +14,32 @@ function riskColor(s: number) { if(s>=60) return 'text-red-600'; if(s>=25) retur
 export function ReportsPage() {
   const [reports, setReports] = useState<SessionReport[]>([]);
   const [activeId, setActiveId] = useState<string|null>(null);
+  const [active, setActive] = useState<SessionReport|null>(null);
 
-  useEffect(()=>{ getSessionReports().then(r=>{ setReports(r); if(r.length) setActiveId(r[0].id); }); },[]);
+  // Fetch reports list from backend
+  useEffect(()=>{
+    getSessionReports().then(r=>{
+      setReports(r);
+      if(r.length) setActiveId(r[0].id);
+    }).catch(()=>{});
+  },[]);
 
-  const active = reports.find(r=>r.id===activeId);
+  // When activeId changes, fetch the full report details
+  useEffect(()=>{
+    if(!activeId) { setActive(null); return; }
+    // First check if we already have it in the list with violations
+    const cached = reports.find(r=>r.id===activeId);
+    if (cached && cached.violations && cached.violations.length > 0) {
+      setActive(cached);
+      return;
+    }
+    // Otherwise fetch from backend
+    getSessionReport(activeId).then(r=>setActive(r)).catch(()=>{
+      // Fallback to cached
+      if(cached) setActive(cached);
+    });
+  },[activeId, reports]);
+
   const sevScore = active ? active.violations.reduce((a,v)=>a + (SEVERITY_MAP[v.type as ViolationType]??1), 0) : 0;
 
   const initials = (active?.student_name??'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
@@ -86,7 +108,11 @@ export function ReportsPage() {
           </Card>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Select a session to view details</div>
+        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+          {reports.length === 0
+            ? 'No reports available — start a monitoring session first'
+            : 'Select a session to view details'}
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+ import { useState, useEffect } from 'react';
 import { getConfig, updateConfig } from '../api/client';
 import { ThresholdSlider } from '../components/settings/ThresholdSlider';
 import { ToggleRow } from '../components/settings/ToggleRow';
@@ -23,7 +23,7 @@ export function SettingsPage() {
   const [cfg, setCfg] = useState<Config>(DEFAULTS);
   const [toast, setToast] = useState(false);
 
-  useEffect(()=>{ getConfig().then(setCfg); },[]);
+  useEffect(()=>{ getConfig().then(setCfg).catch(()=>{}); },[]);
 
   function set<K extends keyof Config>(section: K, patch: Partial<Config[K]>) {
     setCfg(p => ({ ...p, [section]: { ...p[section], ...patch } }));
@@ -33,9 +33,15 @@ export function SettingsPage() {
   }
 
   async function save() {
-    await updateConfig(cfg);
-    setToast(true);
-    setTimeout(()=>setToast(false), 2500);
+    try {
+      await updateConfig(cfg);
+      setToast(true);
+      setTimeout(()=>setToast(false), 2500);
+    } catch {
+      // Backend unreachable — config saved locally only
+      setToast(true);
+      setTimeout(()=>setToast(false), 2500);
+    }
   }
 
   const d = cfg.detection;

@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
+import { getAlerts } from '../../api/client';
+import type { Alert } from '../../types';
 
 const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
@@ -9,8 +11,36 @@ function cellColor(v: number) {
   return 'bg-red-400';
 }
 
+/**
+ * Weekly heatmap — maps real violations to day-of-week buckets.
+ * Uses alert timestamps from the backend.
+ */
 export function WeeklyHeatmap() {
-  const data = useMemo(()=> days.map(d => ({ day: d, count: Math.floor(Math.random()*10) })), []);
+  const [data, setData] = useState<{day:string; count:number}[]>(
+    days.map(d => ({ day: d, count: 0 }))
+  );
+
+  useEffect(() => {
+    getAlerts(200).then((alerts: Alert[]) => {
+      const counts: Record<string, number> = {};
+      days.forEach(d => { counts[d] = 0; });
+
+      alerts.forEach(a => {
+        try {
+          const ts = a.timestamp;
+          if (!ts) return;
+          const date = new Date(ts);
+          // getDay(): 0=Sun, 1=Mon ... 6=Sat → remap to Mon-Sun
+          const jsDay = date.getDay();
+          const dayIdx = jsDay === 0 ? 6 : jsDay - 1; // Mon=0 ... Sun=6
+          const dayName = days[dayIdx];
+          if (dayName) counts[dayName]++;
+        } catch { /* skip invalid timestamps */ }
+      });
+
+      setData(days.map(d => ({ day: d, count: counts[d] ?? 0 })));
+    }).catch(() => {});
+  }, []);
 
   return (
     <div>

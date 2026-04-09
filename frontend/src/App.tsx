@@ -8,15 +8,17 @@ import { SettingsPage } from './pages/SettingsPage';
 import { LandingPage } from './pages/LandingPage';
 import { usePolling } from './hooks/usePolling';
 import { getSessionStats } from './api/client';
+import { MonitorProvider, useMonitorContext } from './hooks/useMonitorContext';
 
 /* ---------- Protected Dashboard Layout ---------- */
-function DashboardLayout() {
+function DashboardInner() {
   const stats = usePolling(getSessionStats, 5000);
+  const { isMonitoring } = useMonitorContext();
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0">
-        <Topbar stats={stats} />
+        <Topbar stats={stats} isMonitoring={isMonitoring} />
         <Routes>
           <Route path="monitor" element={<MonitorPage />} />
           <Route path="reports" element={<ReportsPage />} />
@@ -25,6 +27,14 @@ function DashboardLayout() {
         </Routes>
       </div>
     </div>
+  );
+}
+
+function DashboardLayout() {
+  return (
+    <MonitorProvider>
+      <DashboardInner />
+    </MonitorProvider>
   );
 }
 

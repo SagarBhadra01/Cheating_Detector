@@ -67,6 +67,7 @@ export interface SessionReport {
   total_violations: number;
   risk_score: number;
   violations: ViolationRecord[];
+  metrics?: MetricsData;
 }
 
 export interface Config {

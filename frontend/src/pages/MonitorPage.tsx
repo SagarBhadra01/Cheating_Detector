@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { usePolling } from '../hooks/usePolling';
 import { useLockdown } from '../hooks/useLockdown';
+import { useMonitorContext } from '../hooks/useMonitorContext';
 import {
   getDetectionState, getSessionStats, getAlerts,
   getGazeDistribution, getMetrics, getVideoFeedUrl,
   startSession, stopSession,
 } from '../api/client';
+import { saveReport } from '../api/storage';
 import { MetricCard } from '../components/monitor/MetricCard';
 import { VideoFeed } from '../components/monitor/VideoFeed';
 import { ActivityTimeline } from '../components/monitor/ActivityTimeline';
@@ -17,16 +19,17 @@ import { LockdownControls } from '../components/monitor/LockdownControls';
 import { LockdownViolationFeed } from '../components/monitor/LockdownViolationFeed';
 import { TerminationModal } from '../components/monitor/TerminationModal';
 import { MetricsPanel } from '../components/monitor/MetricsPanel';
-import type { LockdownViolation } from '../types';
+import type { LockdownViolation, SessionReport } from '../types';
 import { Camera, CameraOff } from 'lucide-react';
 
 const POLL = Number(import.meta.env.VITE_POLL_INTERVAL_MS ?? 2000);
 
 export function MonitorPage() {
-  /* ── Monitoring state (backend camera) ──────────────────────────── */
-  const [isMonitoring, setIsMonitoring] = useState(false);
+  /* ── Monitoring state (shared via context for Topbar timer) ───── */
+  const { isMonitoring, setIsMonitoring } = useMonitorContext();
   const [isStarting, setIsStarting]     = useState(false);
   const [error, setError]               = useState<string | null>(null);
+  const sessionStartRef = useRef<string | null>(null);
 
   /* ── Termination alert ────────────────────────────────────────── */
   const [terminationViolation, setTerminationViolation] =
@@ -39,7 +42,7 @@ export function MonitorPage() {
         setIsMonitoring(false);
         stopSession().catch(() => {});
         setTerminationViolation(v);
-      }, []),
+      }, [setIsMonitoring]),
     });
 
   /* ── Polling (only when monitoring is active) ─────────────────── */
@@ -60,6 +63,7 @@ export function MonitorPage() {
     setTerminationViolation(null);
     try {
       await startSession('STUDENT_001', 'Student', 'Final Exam');
+      sessionStartRef.current = new Date().toISOString();
       setIsMonitoring(true);
       startLockdown();
     } catch (err: unknown) {
@@ -68,14 +72,46 @@ export function MonitorPage() {
     } finally {
       setIsStarting(false);
     }
-  }, [startLockdown]);
+  }, [startLockdown, setIsMonitoring]);
 
-  /* ── Stop monitoring ──────────────────────────────────────────── */
+  /* ── Stop monitoring — saves report to localStorage ──────────── */
   const handleStop = useCallback(async () => {
+    // Capture final snapshot before stopping
+    const finalStats = stats;
+    const finalMetrics = metrics;
+    const finalAlerts = alerts;
+
     setIsMonitoring(false);
     stopLockdown();
     try { await stopSession(); } catch { /* ignore */ }
-  }, [stopLockdown]);
+
+    // Build and save a report to localStorage
+    const sessionId = `session-${Date.now()}`;
+    const startTime = sessionStartRef.current || new Date().toISOString();
+    const durationMs = Date.now() - new Date(startTime).getTime();
+    const durationMin = Math.round(durationMs / 60000);
+
+    const report: SessionReport = {
+      id: sessionId,
+      student_name: finalStats?.student_name || 'Student',
+      student_id: finalStats?.student_id || 'STUDENT_001',
+      exam_name: finalStats?.exam_name || 'Final Exam',
+      date: new Date().toISOString(),
+      duration_minutes: durationMin,
+      total_violations: finalStats?.total_alerts ?? 0,
+      risk_score: finalStats?.risk_score ?? 0,
+      violations: (finalAlerts ?? []).map(a => ({
+        type: a.type,
+        timestamp: a.timestamp,
+        details: a.message,
+        severity: a.severity,
+      })),
+      metrics: finalMetrics ?? undefined,
+    };
+
+    saveReport(report);
+    sessionStartRef.current = null;
+  }, [stopLockdown, setIsMonitoring, stats, metrics, alerts]);
 
   /* ── Acknowledge termination modal ────────────────────────────── */
   const acknowledgeTermination = useCallback(() => {

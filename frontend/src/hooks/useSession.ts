@@ -1,17 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
-export function useSession(startTime: string): string {
+/**
+ * Session timer hook.
+ * - Starts counting when `isActive` becomes true
+ * - Resets to 00:00:00 when `isActive` becomes false
+ * - Returns formatted elapsed time string
+ */
+export function useSession(isActive: boolean): string {
   const [elapsed, setElapsed] = useState('00:00:00');
+  const startRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const origin = new Date(startTime).getTime();
+    if (!isActive) {
+      setElapsed('00:00:00');
+      startRef.current = null;
+      return;
+    }
+
+    // Mark start time
+    startRef.current = Date.now();
 
     const tick = () => {
-      const diff = Math.max(0, Math.floor((Date.now() - origin) / 1000));
+      if (!startRef.current) return;
+      const diff = Math.max(0, Math.floor((Date.now() - startRef.current) / 1000));
       const h = Math.floor(diff / 3600);
       const m = Math.floor((diff % 3600) / 60);
       const s = diff % 60;
@@ -21,7 +36,7 @@ export function useSession(startTime: string): string {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [startTime]);
+  }, [isActive]);
 
   return elapsed;
 }

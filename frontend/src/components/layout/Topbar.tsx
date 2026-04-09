@@ -7,21 +7,20 @@ import { Clock } from 'lucide-react';
 
 interface TopbarProps {
   stats: SessionStats | null;
+  isMonitoring?: boolean;
 }
 
 const tabs = [
   { to: '/monitor',  label: 'Monitor'  },
   { to: '/reports',  label: 'Reports'  },
-  //{ to: '/settings', label: 'Settings' },
 ];
 
-export function Topbar({ stats }: TopbarProps) {
+export function Topbar({ stats, isMonitoring = false }: TopbarProps) {
   const { pathname } = useLocation();
   const { user } = useUser();
 
-  const elapsed = useSession(
-    stats?.session_start ?? new Date().toISOString(),
-  );
+  // Timer starts when monitoring, resets to 00:00:00 when stopped
+  const elapsed = useSession(isMonitoring);
 
   // Resolve name: Clerk fullName → firstName → email prefix → fallback
   const displayName =
@@ -78,8 +77,11 @@ export function Topbar({ stats }: TopbarProps) {
       </nav>
 
       {/* Live badge */}
-      <Badge variant="live">Live</Badge>
-
+      {isMonitoring ? (
+        <Badge variant="live">Live</Badge>
+      ) : (
+        <Badge variant="idle">Idle</Badge>
+      )}
       {/* Timer */}
       <div className="flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1 border border-gray-200">
         <Clock className="w-3 h-3 text-gray-400" />

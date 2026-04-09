@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getSessionReports, getSessionReport, getPdfReportUrl } from '../api/client';
+import { getStoredReports } from '../api/storage';
 import { SessionList } from '../components/reports/SessionList';
 import { ViolationTimeline } from '../components/reports/ViolationTimeline';
 import { ViolationBreakdown } from '../components/reports/ViolationBreakdown';
@@ -7,22 +8,43 @@ import { WeeklyHeatmap } from '../components/reports/WeeklyHeatmap';
 import { Card } from '../components/ui/Card';
 import { SEVERITY_MAP } from '../types';
 import type { SessionReport, ViolationType } from '../types';
-import { Download, FileText, Video, Camera } from 'lucide-react';
+import { Download, FileText, Video, Camera, RefreshCw } from 'lucide-react';
 
 function riskColor(s: number) { if(s>=60) return 'text-red-600'; if(s>=25) return 'text-amber-600'; return 'text-green-600'; }
+
+function formatDate(d: string) {
+  try {
+    return new Date(d).toLocaleString();
+  } catch { return d; }
+}
 
 export function ReportsPage() {
   const [reports, setReports] = useState<SessionReport[]>([]);
   const [activeId, setActiveId] = useState<string|null>(null);
   const [active, setActive] = useState<SessionReport|null>(null);
 
-  // Fetch reports list from backend
-  useEffect(()=>{
-    getSessionReports().then(r=>{
-      setReports(r);
-      if(r.length) setActiveId(r[0].id);
-    }).catch(()=>{});
-  },[]);
+  // Load reports: merge backend + localStorage
+  const loadReports = () => {
+    const stored = getStoredReports();
+
+    getSessionReports().then(backendReports => {
+      // Merge: localStorage reports first (newest), then backend, deduplicate
+      const merged = [...stored];
+      for (const br of backendReports) {
+        if (!merged.find(r => r.id === br.id)) {
+          merged.push(br);
+        }
+      }
+      setReports(merged);
+      if (merged.length && !activeId) setActiveId(merged[0].id);
+    }).catch(() => {
+      // Backend unreachable — use localStorage only
+      setReports(stored);
+      if (stored.length && !activeId) setActiveId(stored[0].id);
+    });
+  };
+
+  useEffect(() => { loadReports(); }, []);
 
   // When activeId changes, fetch the full report details
   useEffect(()=>{
@@ -48,6 +70,9 @@ export function ReportsPage() {
   const screenshotTypes: ViolationType[] = ['OBJECT_DETECTED','MULTIPLE_FACES','HAND_VIOLATION'];
   const screenshots = active ? active.violations.filter(v=>screenshotTypes.includes(v.type)) : [];
 
+  // Metrics from the report (if saved)
+  const m = (active as SessionReport & { metrics?: Record<string, unknown> })?.metrics;
+
   return (
     <div className="flex flex-1 h-full overflow-hidden">
       <SessionList reports={reports} activeId={activeId} onSelect={setActiveId}/>
@@ -60,12 +85,11 @@ export function ReportsPage() {
               <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">{initials}</div>
               <div>
                 <h2 className="text-base font-semibold text-gray-900">{active.student_name}</h2>
-                <p className="text-[11px] text-gray-400">{active.student_id} · {active.exam_name} · {active.date}</p>
+                <p className="text-[11px] text-gray-400">{active.student_id} · {active.exam_name} · {formatDate(active.date)}</p>
               </div>
             </div>
             <div className="flex gap-2">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50"><Video className="w-3.5 h-3.5"/>View video</button>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50"><FileText className="w-3.5 h-3.5"/>Export HTML</button>
+              <button onClick={loadReports} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50"><RefreshCw className="w-3.5 h-3.5"/>Refresh</button>
               <a href={getPdfReportUrl(active.id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-blue-600 text-white hover:bg-blue-700"><Download className="w-3.5 h-3.5"/>Download PDF</a>
             </div>
           </div>
@@ -77,6 +101,25 @@ export function ReportsPage() {
             <Card><p className="text-[11px] text-gray-400 uppercase tracking-wider">Duration</p><p className="text-2xl font-medium text-gray-900">{active.duration_minutes}<span className="text-sm text-gray-400"> min</span></p></Card>
             <Card><p className="text-[11px] text-gray-400 uppercase tracking-wider">Severity score</p><p className="text-2xl font-medium text-gray-900">{sevScore}</p></Card>
           </div>
+
+          {/* ML Metrics summary (if available from saved session) */}
+          {m && (
+            <Card title="session ml metrics">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                {(m as Record<string, unknown>).classification && (() => {
+                  const c = (m as Record<string, unknown>).classification as Record<string, number>;
+                  return (
+                    <>
+                      <div><span className="text-gray-400 text-[11px]">Accuracy</span><p className="text-lg font-medium">{(c.accuracy * 100).toFixed(1)}%</p></div>
+                      <div><span className="text-gray-400 text-[11px]">Precision</span><p className="text-lg font-medium">{(c.precision * 100).toFixed(1)}%</p></div>
+                      <div><span className="text-gray-400 text-[11px]">Recall</span><p className="text-lg font-medium">{(c.recall * 100).toFixed(1)}%</p></div>
+                      <div><span className="text-gray-400 text-[11px]">F1 Score</span><p className="text-lg font-medium">{(c.f1_score * 100).toFixed(1)}%</p></div>
+                    </>
+                  );
+                })()}
+              </div>
+            </Card>
+          )}
 
           {/* Two-col: timeline + breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">

@@ -1,5 +1,5 @@
 interface BadgeProps {
-  variant: 'live' | 'session' | 'risk-high' | 'risk-med' | 'risk-low';
+  variant: 'live' | 'session' | 'risk-high' | 'risk-med' | 'risk-low' | 'idle';
   children: React.ReactNode;
 }
 
@@ -9,6 +9,7 @@ const variantClasses: Record<BadgeProps['variant'], string> = {
   'risk-high': 'bg-red-50 text-red-600 border-red-200',
   'risk-med': 'bg-amber-50 text-amber-600 border-amber-200',
   'risk-low': 'bg-green-50 text-green-600 border-green-200',
+  idle: 'bg-gray-50 text-gray-500 border-gray-200',
 };
 
 export function Badge({ variant, children }: BadgeProps) {

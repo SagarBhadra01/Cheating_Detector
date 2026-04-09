@@ -1,4 +1,4 @@
- import cv2
+import cv2
 import torch
 from facenet_pytorch import MTCNN
 

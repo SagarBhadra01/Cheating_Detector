@@ -19,6 +19,7 @@ from utils.violation_logger import ViolationLogger
 from utils.screenshot_utils import ViolationCapturer
 from reporting.report_generator import ReportGenerator
 from utils.hardware_checks import HardwareMonitor
+from shared import state_store
 
 
 def load_config():
@@ -91,6 +92,73 @@ class MetricsTracker:
         if active_detectors:
             for name in active_detectors:
                 self.per_detector_triggers[name] = self.per_detector_triggers.get(name, 0) + 1
+
+    def to_dict(self, detectors: list = None) -> dict:
+        """
+        Export all metrics as a dictionary for the dashboard API.
+        """
+        elapsed = time.time() - self.start_time
+        tp, fp, tn, fn = self.tp, self.fp, self.tn, self.fn
+        total = tp + fp + tn + fn
+        if total == 0:
+            total = max(self.total_frames, 1)
+            tn = total
+
+        accuracy    = (tp + tn) / total
+        precision   = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall      = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+        f1          = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+        denom_sq = (tp+fp) * (tp+fn) * (tn+fp) * (tn+fn)
+        mcc = ((tp * tn) - (fp * fn)) / math.sqrt(denom_sq) if denom_sq > 0 else 0.0
+
+        result = {
+            "session_duration_s": round(elapsed, 1),
+            "total_frames": self.total_frames,
+            "avg_fps": round(self.total_frames / elapsed, 1) if elapsed > 0 else 0,
+            "confusion_matrix": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
+            "classification": {
+                "accuracy": round(accuracy, 4),
+                "precision": round(precision, 4),
+                "recall": round(recall, 4),
+                "specificity": round(specificity, 4),
+                "f1_score": round(f1, 4),
+                "mcc": round(mcc, 4),
+            },
+            "per_detector_triggers": dict(self.per_detector_triggers),
+            "ground_truth_active": self.ground_truth_active,
+        }
+
+        # Add detector-specific metrics if available
+        if detectors:
+            obj_det = next((d for d in detectors if type(d).__name__ == "ObjectDetector"), None)
+            face_det = next((d for d in detectors if type(d).__name__ == "FaceDetector"), None)
+
+            if obj_det and hasattr(obj_det, 'metrics'):
+                om = obj_det.metrics
+                confs = om.get('confidences', [])
+                result["yolo"] = {
+                    "inference_frames": om.get('inference_frames', 0),
+                    "raw_detections": om.get('raw_detections', 0),
+                    "validated_detections": om.get('validated_detections', 0),
+                    "rejected_detections": om.get('rejected_detections', 0),
+                    "avg_confidence": round(sum(confs) / len(confs), 4) if confs else 0,
+                    "max_confidence": round(max(confs), 4) if confs else 0,
+                    "min_confidence": round(min(confs), 4) if confs else 0,
+                }
+
+            if face_det and hasattr(face_det, 'metrics'):
+                fm = face_det.metrics
+                fconfs = fm.get('confidences', [])
+                result["mtcnn"] = {
+                    "inference_frames": fm.get('inference_frames', 0),
+                    "face_detected_frames": fm.get('face_detected_frames', 0),
+                    "face_absent_frames": fm.get('face_absent_frames', 0),
+                    "violation_frames": fm.get('violation_frames', 0),
+                    "avg_confidence": round(sum(fconfs) / len(fconfs), 4) if fconfs else 0,
+                }
+
+        return result
 
     def print_report(self, detectors: list):
         """
@@ -334,6 +402,11 @@ def main():
         'course': 'Computer Science 101'
     }
 
+    # Gaze distribution counters for the dashboard
+    gaze_counts = {'left': 0, 'center': 0, 'right': 0}
+    gaze_deviation_count = 0
+    session_start_time = datetime.now()
+
     # Video/Screen recording has been disabled per user request
     # video_recorder = VideoRecorder(config)
     # screen_recorder = ScreenRecorder(config)
@@ -493,6 +566,66 @@ def main():
             # ── Record frame for metrics ───────────────────────────────
             metrics.record_frame(frame_violation, active_detectors if frame_violation else None)
 
+            # ── Update gaze counters ──────────────────────────────────
+            gaze_dir = results.get('gaze_direction', 'center').lower()
+            if gaze_dir in gaze_counts:
+                gaze_counts[gaze_dir] += 1
+            if gaze_dir != 'center':
+                gaze_deviation_count += 1
+
+            # ── Push state to shared store for the dashboard ──────────
+            state_store.write_detection_state({
+                'face_present': results.get('face_present', False),
+                'gaze_direction': gaze_dir,
+                'eye_ratio': round(results.get('eye_ratio', 0.0), 4),
+                'mouth_moving': results.get('mouth_moving', False),
+                'multiple_faces': results.get('multiple_faces', False),
+                'objects_detected': results.get('objects_detected', False),
+                'detected_object_label': results.get('detected_object_label', ''),
+                'hand_violation': results.get('hand_violation', False),
+                'hand_violation_msg': results.get('hand_violation_msg', ''),
+                'eye_alarming': results.get('eye_alarming', False),
+                'mouth_alarming': results.get('mouth_alarming', False),
+                'timestamp': results.get('timestamp', ''),
+            })
+
+            # Compute face-absent duration from face detector
+            face_absent_dur = 0.0
+            fd_inst = next((d for d in detectors if isinstance(d, FaceDetector)), None)
+            if fd_inst and hasattr(fd_inst, 'no_face_duration'):
+                face_absent_dur = round(fd_inst.no_face_duration, 1)
+
+            # Calculate risk score: weighted sum of violations
+            total_alerts = len(violation_logger.get_violations()) if hasattr(violation_logger, 'get_violations') else 0
+            risk = min(100, int(
+                total_alerts * 5 +
+                face_absent_dur * 2 +
+                gaze_deviation_count * 0.05
+            ))
+
+            state_store.write_session_stats({
+                'total_alerts': total_alerts,
+                'face_absent_duration': face_absent_dur,
+                'gaze_deviations': gaze_deviation_count,
+                'risk_score': risk,
+                'session_start': session_start_time.isoformat(),
+                'student_name': student_info.get('name', ''),
+                'student_id': student_info.get('id', ''),
+                'exam_name': student_info.get('exam', ''),
+            })
+
+            # Gaze distribution as percentages
+            g_total = sum(gaze_counts.values()) or 1
+            state_store.write_gaze_distribution({
+                'left': round(gaze_counts['left'] / g_total * 100),
+                'center': round(gaze_counts['center'] / g_total * 100),
+                'right': round(gaze_counts['right'] / g_total * 100),
+            })
+
+            # Metrics (write every 30 frames to reduce I/O)
+            if metrics.total_frames % 30 == 0:
+                state_store.write_metrics(metrics.to_dict(detectors))
+
             # Show GT indicator on frame
             if metrics.ground_truth_active:
                 cv2.rectangle(frame, (frame.shape[1]-220, frame.shape[0]-45), 
@@ -505,6 +638,9 @@ def main():
 
             # Display
             display_detection_results(frame, results)
+
+            # Push annotated frame for MJPEG stream
+            state_store.write_frame(frame)
             
             # Show preview and handle key input
             cv2.imshow('Exam Proctoring', frame)

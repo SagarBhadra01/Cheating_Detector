@@ -53,11 +53,18 @@ try:
         ReportEntry, SessionResponse, SessionStatus,
     )
 except ImportError:
-    from dashboard.models import (
-        AlertPayload, SessionStartPayload,
-        HealthResponse, StatsResponse, AlertEntry,
-        ReportEntry, SessionResponse, SessionStatus,
-    )
+    try:
+        from dashboard.models import (
+            AlertPayload, SessionStartPayload,
+            HealthResponse, StatsResponse, AlertEntry,
+            ReportEntry, SessionResponse, SessionStatus,
+        )
+    except ImportError:
+        from models import (
+            AlertPayload, SessionStartPayload,
+            HealthResponse, StatsResponse, AlertEntry,
+            ReportEntry, SessionResponse, SessionStatus,
+        )
 
 
 # ── Logging ────────────────────────────────────────────────────────────────
@@ -70,6 +77,15 @@ if not logger.handlers:
         "[%(asctime)s] %(levelname)s  %(message)s", datefmt="%H:%M:%S"
     ))
     logger.addHandler(handler)
+
+# ── Camera thread (lightweight capture when main.py isn't running) ─────────
+try:
+    from camera_thread import camera as _camera
+except ImportError:
+    try:
+        from dashboard.camera_thread import camera as _camera
+    except ImportError:
+        _camera = None
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
@@ -398,6 +414,19 @@ async def start_session(payload: SessionStartPayload):
     # Clear old alerts for the new session
     cloud_alerts.clear()
 
+    # Start camera capture thread for live video feed
+    cam_ok = False
+    if _camera:
+        cam_ok = _camera.start(
+            student_id=payload.student_id,
+            student_name=payload.student_name,
+            exam_name=payload.exam_name,
+        )
+        if cam_ok:
+            logger.info("Dashboard camera started")
+        else:
+            logger.warning("Dashboard camera failed to start — video feed will be blank")
+
     logger.info(f"Session started: {session['id']} for student {payload.student_id}")
 
     await ws_manager.broadcast({"type": "session_started", "data": session.copy()})
@@ -418,6 +447,12 @@ async def stop_session():
         raise HTTPException(status_code=400, detail="No active session to stop")
 
     session["status"] = SessionStatus.COMPLETED
+
+    # Stop camera capture thread
+    if _camera and _camera.is_running:
+        _camera.stop()
+        logger.info("Dashboard camera stopped")
+
     logger.info(f"Session stopped: {session['id']} — {session['violation_count']} violations")
 
     await ws_manager.broadcast({"type": "session_stopped", "data": session.copy()})
@@ -470,6 +505,178 @@ async def websocket_alerts(websocket: WebSocket):
         ws_manager.disconnect(websocket)
     except Exception:
         ws_manager.disconnect(websocket)
+
+
+# ── Real-time Detection State (from shared state_store) ───────────────────
+
+try:
+    import sys
+    # Ensure the src directory is on the path so shared.state_store is importable
+    _src_dir = str(Path(__file__).resolve().parent.parent)
+    if _src_dir not in sys.path:
+        sys.path.insert(0, _src_dir)
+    from shared import state_store as _state
+except ImportError:
+    _state = None
+
+
+@app.get("/api/detection/state", tags=["Detection"])
+async def get_detection_state():
+    """Return real-time detection state (face, gaze, mouth, objects, etc.)."""
+    if _state:
+        return JSONResponse(content=_state.read_detection_state())
+    return JSONResponse(content={})
+
+
+@app.get("/api/session/stats", tags=["Analytics"])
+async def get_session_stats():
+    """Return session statistics matching the frontend SessionStats type."""
+    if _state:
+        return JSONResponse(content=_state.read_session_stats())
+    # Fallback: derive from current session + violations
+    violations = _read_violations_file()
+    return JSONResponse(content={
+        "total_alerts": len(violations),
+        "face_absent_duration": 0,
+        "gaze_deviations": 0,
+        "risk_score": 0,
+        "session_start": session.get("started_at", datetime.now().isoformat()),
+        "student_name": session.get("student_name", ""),
+        "student_id": session.get("student_id", ""),
+        "exam_name": session.get("exam_name", ""),
+    })
+
+
+@app.get("/api/gaze/distribution", tags=["Detection"])
+async def get_gaze_distribution():
+    """Return gaze distribution percentages (left/center/right)."""
+    if _state:
+        return JSONResponse(content=_state.read_gaze_distribution())
+    return JSONResponse(content={"left": 0, "center": 100, "right": 0})
+
+
+@app.get("/api/metrics", tags=["Analytics"])
+async def get_metrics():
+    """Return ML performance metrics from MetricsTracker."""
+    if _state:
+        return JSONResponse(content=_state.read_metrics())
+    return JSONResponse(content={})
+
+
+@app.get("/api/config", tags=["Config"])
+async def get_config():
+    """Return the current detection configuration."""
+    return JSONResponse(content={
+        "detection": {
+            "face": config.get("detection", {}).get("face", {"detection_interval": 5, "min_confidence": 0.8}),
+            "eyes": config.get("detection", {}).get("eyes", {"gaze_threshold": 2, "blink_threshold": 0.3, "gaze_sensitivity": 15}),
+            "mouth": config.get("detection", {}).get("mouth", {"movement_threshold": 8}),
+            "multi_face": config.get("detection", {}).get("multi_face", {"alert_threshold": 5}),
+            "objects": config.get("detection", {}).get("objects", {"min_confidence": 0.65, "detection_interval": 3}),
+            "audio_monitoring": config.get("detection", {}).get("audio_monitoring", {"enabled": True, "energy_threshold": 0.001, "zcr_threshold": 0.35, "whisper_enabled": False}),
+        },
+        "logging": {
+            "alert_cooldown": config.get("logging", {}).get("alert_cooldown", 5),
+            "alert_system": config.get("logging", {}).get("alert_system", {"voice_alerts": True, "alert_volume": 0.8, "cooldown": 10}),
+        },
+        "screen": config.get("screen", {"recording": True, "fps": 15}),
+    })
+
+
+@app.post("/api/config", tags=["Config"])
+async def update_config(request: Request):
+    """Update the configuration (merges into current config)."""
+    body = await request.json()
+    # Merge into global config
+    for key, val in body.items():
+        if isinstance(val, dict) and key in config:
+            config[key].update(val)
+        else:
+            config[key] = val
+    # Persist to config.yaml
+    candidates = [
+        Path("config/config.yaml"),
+        Path("../config/config.yaml"),
+        Path(__file__).resolve().parent.parent.parent / "config" / "config.yaml",
+    ]
+    for p in candidates:
+        if p.exists():
+            try:
+                with open(p, "w") as f:
+                    yaml.dump(config, f, default_flow_style=False)
+            except IOError:
+                pass
+            break
+    return JSONResponse(content={"status": "updated"})
+
+
+@app.get("/api/reports/{report_id}", tags=["Reports"])
+async def get_report(report_id: str):
+    """Return a specific session report by ID from violations data."""
+    violations = _read_violations_file()
+    # Build a report from the violations data
+    severity_map = {
+        "FACE_DISAPPEARED": 1, "GAZE_AWAY": 2, "MOUTH_MOVING": 3,
+        "VOICE_DETECTED": 3, "SPEECH_VIOLATION": 3, "MULTIPLE_FACES": 4,
+        "OBJECT_DETECTED": 5, "HAND_VIOLATION": 5,
+    }
+    report_violations = []
+    for v in violations:
+        vtype = v.get("type", "UNKNOWN")
+        report_violations.append({
+            "type": vtype,
+            "timestamp": v.get("timestamp", ""),
+            "metadata": v.get("metadata", {}),
+            "severity": severity_map.get(vtype, 1),
+        })
+
+    risk = min(100, len(violations) * 8)
+    return JSONResponse(content={
+        "id": report_id,
+        "student_name": session.get("student_name", "Student"),
+        "student_id": session.get("student_id", ""),
+        "exam_name": session.get("exam_name", "Exam"),
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "duration_minutes": int((datetime.now() - _startup_time).total_seconds() / 60),
+        "total_violations": len(violations),
+        "risk_score": risk,
+        "violations": report_violations,
+    })
+
+
+@app.get("/api/reports/{report_id}/pdf", tags=["Reports"])
+async def get_report_pdf(report_id: str):
+    """Serve a generated PDF report file."""
+    if REPORTS_DIR.exists():
+        for f in REPORTS_DIR.iterdir():
+            if f.suffix == ".pdf":
+                from fastapi.responses import FileResponse
+                return FileResponse(str(f), media_type="application/pdf", filename=f.name)
+    raise HTTPException(status_code=404, detail="No PDF report found")
+
+
+@app.get("/api/video/feed", tags=["Video"])
+async def video_feed():
+    """MJPEG video stream of the annotated camera feed from main.py."""
+    from fastapi.responses import StreamingResponse
+    import asyncio as _asyncio
+
+    async def generate_frames():
+        while True:
+            frame_bytes = _state.read_frame_bytes() if _state else None
+            if frame_bytes:
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" +
+                    frame_bytes +
+                    b"\r\n"
+                )
+            await _asyncio.sleep(0.05)  # ~20fps
+
+    return StreamingResponse(
+        generate_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -811,4 +1018,5 @@ setInterval(fetchHealth, 10000);
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
+    # Works from any directory
+    uvicorn.run(app, host="0.0.0.0", port=port)

@@ -1,5 +1,4 @@
 <br align="center">
-  <img src="frontend/public/favicon.ico" alt="ShieldX Logo" width="100"/>
   <h1 align="center">ShieldX 🛡️</h1>
   <p align="center"><strong>Advanced AI-Powered Exam Proctoring & Integrity Monitoring System</strong></p>
   <p align="center">

@@ -81,7 +81,7 @@ function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
               fontWeight: 500,
             }}
           >
-            ← Back to ExamProctor
+            ← Back to ShieldX
           </button>
         </div>
         {mode === 'sign-in' ? (

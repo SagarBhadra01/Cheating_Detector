@@ -1,6 +1,15 @@
 import cv2
 import numpy as np
-from mss import mss
+import logging
+
+logger = logging.getLogger(__name__)
+
+try:
+    from mss import mss
+    _HAS_MSS = True
+except ImportError:
+    _HAS_MSS = False
+    logger.warning("mss not available – screen capture disabled")
 from datetime import datetime
 import os
 import threading

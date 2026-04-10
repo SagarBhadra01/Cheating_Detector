@@ -8,7 +8,7 @@ import {
 import '../styles/landing.css';
 
 /* ================================================================
-   ExamProctor — Landing Page
+   ShieldX — Landing Page
    Surveillance / Biometric Terminal Aesthetic
    ================================================================ */
 
@@ -99,7 +99,7 @@ export function LandingPage() {
               <div className="scan-line" />
               <div className="eye-icon" />
             </div>
-            <span className="wordmark">EXAMPROCTOR</span>
+            <span className="wordmark">ShieldX</span>
             <span className="ai-tag">AI v2.0</span>
           </div>
 
@@ -379,7 +379,7 @@ export function LandingPage() {
               <span className="y" />
               <span className="g" />
             </div>
-            <div className="browser-url-bar">examproctor.ai/monitor</div>
+            <div className="browser-url-bar">shieldx.ai/monitor</div>
           </div>
 
           {/* Browser content */}
@@ -390,7 +390,7 @@ export function LandingPage() {
                 <div className="logo-dot">
                   <Shield size={14} color="#080c10" />
                 </div>
-                ExamProctor
+                ShieldX
               </div>
 
               <div className="mock-nav-item active">
@@ -503,7 +503,7 @@ export function LandingPage() {
         <div className="cta-card">
           <h2 className="cta-title">Ready to Secure Your Exams?</h2>
           <p className="cta-subtitle">
-            Deploy ExamProctor in minutes. No hardware required — just a browser and a webcam.
+            Deploy ShieldX in minutes. No hardware required — just a browser and a webcam.
           </p>
           <div className="cta-buttons">
             <Link to="/sign-up" className="btn-primary" style={{ padding: '14px 36px', fontSize: 15 }}>
@@ -522,10 +522,10 @@ export function LandingPage() {
           <div className="logo-box" style={{ width: 24, height: 24, borderWidth: 1.5 }}>
             <div className="eye-icon" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
           </div>
-          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', letterSpacing: 1 }}>EXAMPROCTOR</span>
+          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-muted)', letterSpacing: 1 }}>ShieldX</span>
         </div>
         <div style={{ marginTop: 10, color: 'var(--text-subtle)' }}>
-          © 2026 ExamProctor. AI-Powered Integrity Monitoring. All rights reserved.
+          © 2026 ShieldX. AI-Powered Integrity Monitoring. All rights reserved.
         </div>
       </footer>
     </div>

@@ -1,4 +1,4 @@
-# ExamProctor — AI Proctoring Dashboard
+# ShieldX — AI Proctoring Dashboard
 
 A production-grade React + TypeScript frontend for an AI-powered exam cheating detection system.
 
